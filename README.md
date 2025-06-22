@@ -1,1 +1,1 @@
-"# ai-ticket-system" 
+"# ai-code-assistant" 
