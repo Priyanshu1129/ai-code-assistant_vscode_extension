@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+watchdog
+langchain
+sentence-transformers
+faiss-cpu
+httpx
+python-dotenv
