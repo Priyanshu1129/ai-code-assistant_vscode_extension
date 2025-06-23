@@ -13,6 +13,7 @@ class QueryRequest(BaseModel):
 
 @app.post("/query")
 async def query_code(request: QueryRequest):
+    print("Received question:", request.question)
     chunks = get_relevant_chunks(request.question)
     response = query_llm(question=request.question, context=chunks)
     

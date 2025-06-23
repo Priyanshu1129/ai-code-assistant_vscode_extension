@@ -1,7 +1,7 @@
 import httpx
 import os
 
-# HF_API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1"
+
 HF_API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3"
 
 
@@ -18,7 +18,7 @@ headers = {
 
 def query_llm(question: str, context: list[str]) -> str:
     prompt = f"Answer the question using only the context:\n\nContext:\n{''.join(context)}\n\nQuestion: {question}\n\nAnswer:"
-    
+    print("Question in Prompt for LLM:", question)
     payload = {
         "inputs": prompt,
         "parameters": {
@@ -26,8 +26,8 @@ def query_llm(question: str, context: list[str]) -> str:
             "temperature": 0.3,
         }
     }
-
-    response = httpx.post(HF_API_URL, headers=headers, json=payload)
+    print("Payload for LLM:", payload)
+    response = httpx.post(HF_API_URL, headers=headers, json=payload, timeout=30.0)
     print("Status code:", response.status_code)
     print("Raw text:", response.text)
     result = response.json()
@@ -39,6 +39,7 @@ def query_llm(question: str, context: list[str]) -> str:
         # Extract only what's after 'Answer:'
         text = result[0]["generated_text"]
         answer = text.split("Answer:")[-1].strip()
+        print("LLM response:", answer)
         return answer
 
     return "LLM response not understood"
