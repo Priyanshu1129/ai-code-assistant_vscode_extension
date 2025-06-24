@@ -10,8 +10,6 @@ if not HF_API_KEY:
     raise ValueError("HF_API_KEY not set. Did you load the .env file?")
 
 
-print("Using Hugging Face API URL:", HF_API_KEY)
-
 headers = {
     "Authorization": f"Bearer {HF_API_KEY}"
 }

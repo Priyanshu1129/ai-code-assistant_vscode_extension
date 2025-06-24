@@ -1,40 +1,46 @@
 {
   "name": "ai-dev-assistant",
-  "displayName": "ai-dev-assistant",
-  "description": "",
+  "displayName": "AI Dev Assistant",
+  "description": "VS Code extension + Python backend for a RAG-powered AI code assistant",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.101.0"
+    "vscode": "^1.50.0"
   },
   "categories": [
     "Other"
   ],
   "activationEvents": [
-    "onCommand:ai-dev-assistant.askQuestion"
+    "workspaceContains:**/*",
+    "onCommand:ai-dev-assistant.askQuestion",
+    "onCommand:ai-dev-assistant.showLogs"
   ],
   "main": "./extension.js",
+  "files": [
+    "extension.js",
+    "backend/**"
+  ],
   "contributes": {
     "commands": [
       {
         "command": "ai-dev-assistant.askQuestion",
         "title": "Ask AI Assistant"
+      },
+      {
+        "command": "ai-dev-assistant.showLogs",
+        "title": "Show AI Assistant Logs"
       }
     ]
   },
   "scripts": {
     "lint": "eslint .",
-    "pretest": "npm run lint",
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/mocha": "^10.0.10",
-    "@types/node": "20.x",
-    "@types/vscode": "^1.101.0",
-    "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.5.2",
-    "eslint": "^9.25.1"
+    "@types/vscode": "^1.50.0",
+    "eslint": "^8.0.0"
   },
   "dependencies": {
-    "node-fetch": "^2.7.0"
+    "node-fetch": "^2.7.0",
+    "tree-kill": "^1.2.2"
   }
 }
