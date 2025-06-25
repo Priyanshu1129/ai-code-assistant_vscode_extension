@@ -1,8 +1,14 @@
 {
   "name": "ai-dev-assistant",
   "displayName": "AI Dev Assistant",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Priyanshu1129/ai-code-assistant_vscode_extension"
+  },
+  "publisher": "priyanshujaj",
   "description": "VS Code extension + Python backend for a RAG-powered AI code assistant",
   "version": "0.0.1",
+  "license": "MIT",
   "engines": {
     "vscode": "^1.50.0"
   },
@@ -14,11 +20,7 @@
     "onCommand:ai-dev-assistant.askQuestion",
     "onCommand:ai-dev-assistant.showLogs"
   ],
-  "main": "./extension.js",
-  "files": [
-    "extension.js",
-    "backend/**"
-  ],
+  "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
@@ -29,14 +31,26 @@
         "command": "ai-dev-assistant.showLogs",
         "title": "Show AI Assistant Logs"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "AI Dev Assistant",
+      "properties": {
+        "aiDevAssistant.hfApiKey": {
+          "type": "string",
+          "description": "hugging face API key for the AI model",
+          "default": "hugging face API key for the AI model"
+        }
+      }
+    }
   },
   "scripts": {
     "lint": "eslint .",
-    "test": "vscode-test"
+    "test": "vscode-test",
+    "build:js": "node esbuild.js"
   },
   "devDependencies": {
     "@types/vscode": "^1.50.0",
+    "esbuild": "^0.25.5",
     "eslint": "^8.0.0"
   },
   "dependencies": {

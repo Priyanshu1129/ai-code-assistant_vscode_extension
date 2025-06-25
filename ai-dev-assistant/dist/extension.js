@@ -1,52 +1,149 @@
-const vscode = require("vscode");
-const cp = require("child_process");
-const path = require("path");
-const fs = require("fs");
-const treeKill = require("tree-kill");
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __commonJS = (cb, mod) => function __require() {
+  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+};
 
-let outputChannel;
-let serverProcess;
-let backendPort = null;
-let portReady; // Promise that resolves once we know the port
+// node_modules/tree-kill/index.js
+var require_tree_kill = __commonJS({
+  "node_modules/tree-kill/index.js"(exports2, module2) {
+    "use strict";
+    var childProcess = require("child_process");
+    var spawn = childProcess.spawn;
+    var exec = childProcess.exec;
+    module2.exports = function(pid, signal, callback) {
+      if (typeof signal === "function" && callback === void 0) {
+        callback = signal;
+        signal = void 0;
+      }
+      pid = parseInt(pid);
+      if (Number.isNaN(pid)) {
+        if (callback) {
+          return callback(new Error("pid must be a number"));
+        } else {
+          throw new Error("pid must be a number");
+        }
+      }
+      var tree = {};
+      var pidsToProcess = {};
+      tree[pid] = [];
+      pidsToProcess[pid] = 1;
+      switch (process.platform) {
+        case "win32":
+          exec("taskkill /pid " + pid + " /T /F", callback);
+          break;
+        case "darwin":
+          buildProcessTree(pid, tree, pidsToProcess, function(parentPid) {
+            return spawn("pgrep", ["-P", parentPid]);
+          }, function() {
+            killAll(tree, signal, callback);
+          });
+          break;
+        // case 'sunos':
+        //     buildProcessTreeSunOS(pid, tree, pidsToProcess, function () {
+        //         killAll(tree, signal, callback);
+        //     });
+        //     break;
+        default:
+          buildProcessTree(pid, tree, pidsToProcess, function(parentPid) {
+            return spawn("ps", ["-o", "pid", "--no-headers", "--ppid", parentPid]);
+          }, function() {
+            killAll(tree, signal, callback);
+          });
+          break;
+      }
+    };
+    function killAll(tree, signal, callback) {
+      var killed = {};
+      try {
+        Object.keys(tree).forEach(function(pid) {
+          tree[pid].forEach(function(pidpid) {
+            if (!killed[pidpid]) {
+              killPid(pidpid, signal);
+              killed[pidpid] = 1;
+            }
+          });
+          if (!killed[pid]) {
+            killPid(pid, signal);
+            killed[pid] = 1;
+          }
+        });
+      } catch (err) {
+        if (callback) {
+          return callback(err);
+        } else {
+          throw err;
+        }
+      }
+      if (callback) {
+        return callback();
+      }
+    }
+    function killPid(pid, signal) {
+      try {
+        process.kill(parseInt(pid, 10), signal);
+      } catch (err) {
+        if (err.code !== "ESRCH") throw err;
+      }
+    }
+    function buildProcessTree(parentPid, tree, pidsToProcess, spawnChildProcessesList, cb) {
+      var ps = spawnChildProcessesList(parentPid);
+      var allData = "";
+      ps.stdout.on("data", function(data) {
+        var data = data.toString("ascii");
+        allData += data;
+      });
+      var onClose = function(code) {
+        delete pidsToProcess[parentPid];
+        if (code != 0) {
+          if (Object.keys(pidsToProcess).length == 0) {
+            cb();
+          }
+          return;
+        }
+        allData.match(/\d+/g).forEach(function(pid) {
+          pid = parseInt(pid, 10);
+          tree[parentPid].push(pid);
+          tree[pid] = [];
+          pidsToProcess[pid] = 1;
+          buildProcessTree(pid, tree, pidsToProcess, spawnChildProcessesList, cb);
+        });
+      };
+      ps.on("close", onClose);
+    }
+  }
+});
 
-/**
- * Starts (or restarts) the Python backend + watcher for the given workspace folder.
- */
+// extension.js
+var vscode = require("vscode");
+var cp = require("child_process");
+var path = require("path");
+var fs = require("fs");
+var treeKill = require_tree_kill();
+var outputChannel;
+var serverProcess;
+var backendPort = null;
+var portReady;
 function startBackend(workspacePath, context) {
-  // — kill old process if any
   if (serverProcess && serverProcess.pid) {
-    outputChannel.appendLine(`🛑 Killing backend PID ${serverProcess.pid}…`);
+    outputChannel.appendLine(`\u{1F6D1} Killing backend PID ${serverProcess.pid}\u2026`);
     treeKill(serverProcess.pid, "SIGKILL", (err) => {
-      if (err) outputChannel.appendLine(`❌ Failed to kill: ${err}`);
-      else outputChannel.appendLine(`✅ Killed ${serverProcess.pid}`);
+      if (err) outputChannel.appendLine(`\u274C Failed to kill: ${err}`);
+      else outputChannel.appendLine(`\u2705 Killed ${serverProcess.pid}`);
     });
   }
-
-  // resolve our Python and working dir
   const backendDir = path.join(context.extensionPath, "backend");
   const winPy = path.join(backendDir, "venv", "Scripts", "python.exe");
   const nixPy = path.join(backendDir, "venv", "bin", "python");
-  const pythonExe = fs.existsSync(winPy)
-    ? winPy
-    : fs.existsSync(nixPy)
-    ? nixPy
-    : "python";
-
-  outputChannel.appendLine(`🐍 Using Python: ${pythonExe}`);
-  outputChannel.appendLine(`🚀 Starting backend for: ${workspacePath}`);
-
-  // ① Spawn the new process **first**
-  const hfKey = vscode.workspace
-    .getConfiguration("aiDevAssistant")
-    .get("hfApiKey");
-
+  const pythonExe = fs.existsSync(winPy) ? winPy : fs.existsSync(nixPy) ? nixPy : "python";
+  outputChannel.appendLine(`\u{1F40D} Using Python: ${pythonExe}`);
+  outputChannel.appendLine(`\u{1F680} Starting backend for: ${workspacePath}`);
+  const hfKey = vscode.workspace.getConfiguration("aiDevAssistant").get("hfApiKey");
   if (!hfKey) {
     vscode.window.showErrorMessage(
       "AI Dev Assistant: please set aiDevAssistant.hfApiKey in your settings."
     );
     return;
   }
-
   serverProcess = cp.spawn(pythonExe, ["main.py"], {
     cwd: backendDir,
     env: {
@@ -54,12 +151,10 @@ function startBackend(workspacePath, context) {
       WORKSPACE_PATH: workspacePath,
       HF_API_KEY: hfKey,
       PYTHONIOENCODING: "utf-8",
-      PYTHONUNBUFFERED: "1",
+      PYTHONUNBUFFERED: "1"
     },
-    shell: false,
+    shell: false
   });
-
-  // ② Reset port & set up the promise to await the PORT:: line
   backendPort = null;
   portReady = new Promise((resolve) => {
     const onData = (chunk) => {
@@ -70,7 +165,7 @@ function startBackend(workspacePath, context) {
         if (line.startsWith("PORT::")) {
           backendPort = line.slice("PORT::".length).trim();
           outputChannel.appendLine(
-            `✅ Backend listening on port ${backendPort}`
+            `\u2705 Backend listening on port ${backendPort}`
           );
           serverProcess.stdout.off("data", onData);
           resolve(backendPort);
@@ -78,63 +173,50 @@ function startBackend(workspacePath, context) {
         }
       }
     };
-
-    // attach listener to the freshly-spawned process
     serverProcess.stdout.on("data", onData);
   });
-
-  // stderr & exit handlers
-  serverProcess.stderr.on("data", (d) =>
-    outputChannel.appendLine(`[Backend ERROR] ${d.toString().trim()}`)
+  serverProcess.stderr.on(
+    "data",
+    (d) => outputChannel.appendLine(`[Backend ERROR] ${d.toString().trim()}`)
   );
   serverProcess.on("exit", (code) => {
-    outputChannel.appendLine(`⚠️ Backend exited with code ${code}`);
+    outputChannel.appendLine(`\u26A0\uFE0F Backend exited with code ${code}`);
     backendPort = null;
   });
 }
-
 function activate(context) {
-  // Create & show log channel
   outputChannel = vscode.window.createOutputChannel("AI Assistant Logs");
   context.subscriptions.push(outputChannel);
   outputChannel.show(true);
-  outputChannel.appendLine("🚀 Activating AI Code Assistant…");
-
-  // Launch backend for the initial workspace
+  outputChannel.appendLine("\u{1F680} Activating AI Code Assistant\u2026");
   const initialWF = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   if (initialWF) {
-    outputChannel.appendLine(`📂 Initial workspace: ${initialWF}`);
+    outputChannel.appendLine(`\u{1F4C2} Initial workspace: ${initialWF}`);
     startBackend(initialWF, context);
   } else {
-    outputChannel.appendLine("⚠️ No folder open — backend not started");
+    outputChannel.appendLine("\u26A0\uFE0F No folder open \u2014 backend not started");
   }
-
-  // Restart backend on workspace switches
   context.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders(() => {
       const next = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
       if (next) {
-        outputChannel.appendLine(`🔄 Workspace changed — now: ${next}`);
+        outputChannel.appendLine(`\u{1F504} Workspace changed \u2014 now: ${next}`);
         startBackend(next, context);
       }
     })
   );
-
-  // Register the “Ask AI Assistant” command
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "ai-dev-assistant.askQuestion",
       async () => {
-        // Wait for the port to become available (or timeout)
         const port = await Promise.race([
           portReady,
-          new Promise((_, rej) => setTimeout(() => rej("timeout"), 10_000)),
+          new Promise((_, rej) => setTimeout(() => rej("timeout"), 1e4))
         ]).catch((e) => {
-          vscode.window.showErrorMessage("❌ Backend didn’t start in time");
+          vscode.window.showErrorMessage("\u274C Backend didn\u2019t start in time");
           return null;
         });
         if (!port) return;
-
         const panel = vscode.window.createWebviewPanel(
           "aiDevAssistant",
           "AI Assistant Chat",
@@ -146,22 +228,22 @@ function activate(context) {
           if (msg.command === "ask") {
             try {
               outputChannel.appendLine(
-                `📝 querying http://localhost:${port}/query`
+                `\u{1F4DD} querying http://localhost:${port}/query`
               );
               const res = await fetch(`http://localhost:${port}/query`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ question: msg.text }),
+                body: JSON.stringify({ question: msg.text })
               });
               const data = await res.json();
               panel.webview.postMessage({
                 command: "response",
-                text: data.answer,
+                text: data.answer
               });
             } catch (err) {
               panel.webview.postMessage({
                 command: "response",
-                text: `❌ ${err}`,
+                text: `\u274C ${err}`
               });
             }
           }
@@ -169,27 +251,21 @@ function activate(context) {
       }
     )
   );
-
-  // Optional: Show Logs command
   context.subscriptions.push(
     vscode.commands.registerCommand("ai-dev-assistant.showLogs", () => {
       outputChannel.show(true);
     })
   );
 }
-
 function deactivate() {
   if (serverProcess && serverProcess.pid) {
     treeKill(serverProcess.pid, "SIGKILL", (err) => {
       outputChannel.appendLine(
-        err
-          ? `❌ Failed to kill backend: ${err}`
-          : `✅ Killed backend PID ${serverProcess.pid}`
+        err ? `\u274C Failed to kill backend: ${err}` : `\u2705 Killed backend PID ${serverProcess.pid}`
       );
     });
   }
 }
-
 function getWebviewContent() {
   return `
   <!DOCTYPE html>
@@ -419,12 +495,12 @@ function getWebviewContent() {
   </head>
   <body>
     <div class="header">
-      <h2><span class="header-icon">⚡</span> AI Development Assistant</h2>
+      <h2><span class="header-icon">\u26A1</span> AI Development Assistant</h2>
     </div>
     
     <div id="chat-container">
       <div class="welcome-message">
-        <div class="welcome-icon">💬</div>
+        <div class="welcome-icon">\u{1F4AC}</div>
         <h3>How can I assist you today?</h3>
         <p>Ask questions about your code, project structure, or debugging issues.<br>I'm here to help you with your development tasks!</p>
       </div>
@@ -452,7 +528,7 @@ function getWebviewContent() {
         messageDiv.className = 'message ' + sender;
         
         const messageContent = document.createElement('div');
-        messageContent.textContent = (sender === 'user' ? "🧑‍💻 " : "🤖 ") + text;
+        messageContent.textContent = (sender === 'user' ? "\u{1F9D1}\u200D\u{1F4BB} " : "\u{1F916} ") + text;
         messageDiv.appendChild(messageContent);
         
         const iconSpan = document.createElement('span');
@@ -521,5 +597,5 @@ function getWebviewContent() {
   </html>
   `;
 }
-
 module.exports = { activate, deactivate };
+//# sourceMappingURL=extension.js.map
