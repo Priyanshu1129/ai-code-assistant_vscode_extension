@@ -8,8 +8,8 @@ vsc-extension-quickstart.md
 **/*.map
 **/eslint.config.mjs
 **/.vscode-test.*
-**/venv/**
-**/backend/venv/**
+**/.venv/**
+**/backend/.venv/**
 **/vectorstore/**
 **/__pycache__/**
 **/*.pyc

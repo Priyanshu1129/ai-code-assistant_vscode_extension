@@ -24,8 +24,8 @@ function startBackend(workspacePath, context) {
 
   // resolve our Python and working dir
   const backendDir = path.join(context.extensionPath, "backend");
-  const winPy = path.join(backendDir, "venv", "Scripts", "python.exe");
-  const nixPy = path.join(backendDir, "venv", "bin", "python");
+  const winPy = path.join(backendDir, ".venv", "Scripts", "python.exe");
+  const nixPy = path.join(backendDir, ".venv", "bin", "python");
   const pythonExe = fs.existsSync(winPy)
     ? winPy
     : fs.existsSync(nixPy)

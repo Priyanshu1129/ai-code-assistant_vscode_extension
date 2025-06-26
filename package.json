@@ -20,7 +20,7 @@
     "onCommand:ai-dev-assistant.askQuestion",
     "onCommand:ai-dev-assistant.showLogs"
   ],
-  "main": "extension.js",
+  "main": "dist/extension.js",
   "contributes": {
     "commands": [
       {
