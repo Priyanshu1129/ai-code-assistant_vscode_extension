@@ -1,14 +1,14 @@
 import httpx
 import os
 
-
 HF_API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3"
 
-
 HF_API_KEY = os.getenv("HF_API_KEY")
-if not HF_API_KEY:
-    raise ValueError("HF_API_KEY not set. Did you load the .env file?")
 
+if not HF_API_KEY:
+    raise ValueError("HF_API_KEY not set. Did you load/have the .env file?")
+
+print(f"HF_API_KEY inside Query LLM: {HF_API_KEY}", flush=True)
 
 headers = {
     "Authorization": f"Bearer {HF_API_KEY}"

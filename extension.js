@@ -36,51 +36,30 @@ function startBackend(workspacePath, context) {
   outputChannel.appendLine(`🚀 Starting backend for: ${workspacePath}`);
 
   // ① Spawn the new process **first**
-  const hfKey = vscode.workspace
-    .getConfiguration("aiDevAssistant")
-    .get("hfApiKey");
-
-  if (!hfKey) {
-    vscode.window.showErrorMessage(
-      "AI Dev Assistant: please set aiDevAssistant.hfApiKey in your settings."
-    );
-    return;
-  }
-
   serverProcess = cp.spawn(pythonExe, ["main.py"], {
     cwd: backendDir,
     env: {
       ...process.env,
       WORKSPACE_PATH: workspacePath,
-      HF_API_KEY: hfKey,
       PYTHONIOENCODING: "utf-8",
       PYTHONUNBUFFERED: "1",
     },
     shell: false,
   });
 
-  // ② Reset port & set up the promise to await the PORT:: line
-  backendPort = null;
   portReady = new Promise((resolve) => {
-    const onData = (chunk) => {
+    serverProcess.stdout.on("data", (chunk) => {
       const text = chunk.toString();
-      outputChannel.appendLine(`[Backend] ${text.trim()}`);
       for (let line of text.split(/\r?\n/)) {
-        line = line.trim();
-        if (line.startsWith("PORT::")) {
-          backendPort = line.slice("PORT::".length).trim();
-          outputChannel.appendLine(
-            `✅ Backend listening on port ${backendPort}`
-          );
-          serverProcess.stdout.off("data", onData);
+        const trimmed = line.trim();
+        outputChannel.appendLine(`[Backend] ${trimmed}`);
+
+        if (trimmed.startsWith("PORT::")) {
+          backendPort = trimmed.slice("PORT::".length).trim();
           resolve(backendPort);
-          return;
         }
       }
-    };
-
-    // attach listener to the freshly-spawned process
-    serverProcess.stdout.on("data", onData);
+    });
   });
 
   // stderr & exit handlers
@@ -128,8 +107,9 @@ function activate(context) {
         // Wait for the port to become available (or timeout)
         const port = await Promise.race([
           portReady,
-          new Promise((_, rej) => setTimeout(() => rej("timeout"), 10_000)),
+          new Promise((_, rej) => setTimeout(() => rej("timeout"), 10000)),
         ]).catch((e) => {
+          outputChannel.appendLine(`❌ Backend didn’t start in time: ${e}`);
           vscode.window.showErrorMessage("❌ Backend didn’t start in time");
           return null;
         });
